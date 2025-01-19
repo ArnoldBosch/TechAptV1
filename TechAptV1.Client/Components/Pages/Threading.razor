@@ -1,42 +1,110 @@
 ﻿@page "/threading"
 
-<h3>Threading &amp; Data Persistence</h3>
+    <h3>Threading &amp; Data Persistence</h3>
 
-<div>
-    <button class="btn btn-primary" @onclick="(async () => await this.Start())">Start</button>
-    <button class="btn btn-primary" @onclick="(async () => await this.Save())">Save</button>
-</div>
-<div>
-    <hr>
-    <h4>Numbers:</h4>
-    <ul>
-        <li>Odd: <strong>@this._oddNumbers</strong></li>
-        <li>Even: <strong>@this._evenNumbers</strong></li>
-        <li>Prime: <strong>@this._primeNumbers</strong></li>
-        <li>Total: <strong>@this._totalNumbers</strong></li>
-    </ul>
-    <hr>
-</div>
+    <div>
+        <button class="btn btn-primary" @onclick="(async () => await this.Start())" disabled="@IsStartDisabled">Start</button>
+        <button class="btn btn-primary" @onclick="(async () => await this.Save())" disabled="@IsSaveDisabled">Save</button>
+    </div>
+    <div class="mt-3">
+        @if (_isComputing || _saving)
+        {
+            <div class="d-flex align-items-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Processing...</span>
+                </div>
+                <span class="ms-2">
+                    @if (_isComputing)
+                    {
+                        <label>Computing data...</label>
+                    }
+                    else if (_saving)
+                    {
+                        <label>Saving data...</label>
+                    }
+                </span>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_statusMessage))
+        {
+            <div class="alert alert-success mt-3" role="alert">
+                @_statusMessage
+            </div>
+        }
 
-@code {
+    </div>
+    <div>
+        <hr>
+        <h4>Numbers:</h4>
+        <ul>
+            <li>Odd: <strong>@this._oddNumbers</strong></li>
+            <li>Even: <strong>@this._evenNumbers</strong></li>
+            <li>Prime: <strong>@this._primeNumbers</strong></li>
+            <li>Total: <strong>@this._totalNumbers</strong></li>
+        </ul>
+        <hr>
+    </div>
 
-    [Inject] public required ILogger<Threading> Logger { get; set; }
+    @code {
 
-    private int _oddNumbers = 0;
-    private int _evenNumbers = 0;
-    private int _primeNumbers = 0;
-    private int _totalNumbers = 0;
+        [Inject] public required ILogger<Threading> Logger { get; set; }
+        [Inject] public required ThreadingService ThreadingService { get; set; }
 
-    private async Task Start()
-    {
-        this.Logger.LogInformation("Start");
-        throw new NotImplementedException();
+        private int _oddNumbers = 0;
+        private int _evenNumbers = 0;
+        private int _primeNumbers = 0;
+        private int _totalNumbers = 0;
+
+        // UI state
+        private bool _isComputing = false;
+        private bool _hasComputed = false;
+        private bool _saving = false;
+        private string? _statusMessage;
+        private bool IsStartDisabled => _isComputing || _hasComputed;
+        private bool IsSaveDisabled => !_hasComputed || _saving;
+
+        private async Task Start()
+        {
+            this.Logger.LogInformation("Start");
+
+            // 1. Update UI state
+            _isComputing = true;
+            _hasComputed = false;
+            _statusMessage = null;
+            StateHasChanged();
+            await Task.Delay(1); // Small delay to allow UI to update
+            // 2. Call ThreadingService to do the heavy lifting
+            await ThreadingService.Start();
+
+            // 3. After it finishes, read the counters from the service
+            _oddNumbers = ThreadingService.GetOddNumbers();
+            _evenNumbers = ThreadingService.GetEvenNumbers();
+            _primeNumbers = ThreadingService.GetPrimeNumbers();
+            _totalNumbers = ThreadingService.GetTotalNumbers();
+
+            // 4. Update UI state
+            // Update UI state
+            _isComputing = false;
+            _hasComputed = true;
+            _statusMessage = "Computation Completed!";
+            StateHasChanged(); ;
+        }
+
+        private async Task Save()
+        {
+            this.Logger.LogInformation("Save");
+
+            // Update UI state
+            _saving = true;
+            _statusMessage = null;
+            StateHasChanged();
+            await Task.Delay(1); // Small delay to allow UI to update
+
+            await ThreadingService.Save();
+
+            // Update UI state
+            _saving = false;
+            _statusMessage = "Save Completed!";
+            StateHasChanged();
+        }
     }
-
-    private async Task Save()
-    {
-        this.Logger.LogInformation("Save");
-        throw new NotImplementedException();
-    }
-
-}

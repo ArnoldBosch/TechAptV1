@@ -1,5 +1,7 @@
 ﻿// Copyright © 2025 Always Active Technologies PTY Ltd
 
+using System.Diagnostics;
+using SQLite;
 using TechAptV1.Client.Models;
 
 namespace TechAptV1.Client.Services;
@@ -11,6 +13,8 @@ public sealed class DataService
 {
     private readonly ILogger<DataService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly string _connectionString;
+    private readonly SQLiteAsyncConnection _connection;
 
     /// <summary>
     /// Default constructor providing DI Logger and Configuration
@@ -21,16 +25,59 @@ public sealed class DataService
     {
         this._logger = logger;
         this._configuration = configuration;
+
+        // Get the connection string from appsettings.json
+        _connectionString = _configuration.GetConnectionString("Default")
+                           ?? throw new InvalidOperationException("Connection string 'NumberDb' not found.");
+
+        _connection = new SQLiteAsyncConnection(_connectionString.Split("=")[1]);
+        // Optional: Create the table if it does not exist
+        InitializeDatabase();
     }
 
     /// <summary>
-    /// Save the list of data to the SQLite Database
+    /// Create the Number table if it does not already exist.
+    /// </summary>
+    private async Task InitializeDatabase()
+    {
+        try
+        {
+            // Ensure the table exists using sqlite-net-pcl
+            await _connection.CreateTableAsync<Number>();
+
+            _logger.LogInformation("Database initialized and ensured 'Number' table exists.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error initializing database: {ex.Message}");
+            throw;
+        }
+    }
+
+
+    /// <summary>
+    /// Save a list of Number objects to the SQLite Database
     /// </summary>
     /// <param name="dataList"></param>
-    public async Task Save(List<Number> dataList)
+    /// <returns></returns>
+    public async Task SaveAsync(IEnumerable<Number> dataList)
     {
-        this._logger.LogInformation("Save");
-        throw new NotImplementedException();
+        _logger.LogInformation("Saving data...");
+
+        try
+        {
+            await _connection.RunInTransactionAsync(connection =>
+            {
+                connection.InsertAll(dataList);
+            });
+
+            _logger.LogInformation($"Saved {dataList.Count()} records to the database.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error saving data: {ex.Message}");
+            throw;
+        }
     }
 
     /// <summary>
@@ -38,19 +85,18 @@ public sealed class DataService
     /// </summary>
     /// <param name="count"></param>
     /// <returns></returns>
-    public IEnumerable<Number> Get(int count)
+    public async Task<List<Number>> GetAsync(int count)
     {
-        this._logger.LogInformation("Get");
-        throw new NotImplementedException();
-    }
+        _logger.LogInformation("GetAsync");
 
-    /// <summary>
-    /// Fetch All the records from the SQLite Database
-    /// </summary>
-    /// <returns></returns>
-    public IEnumerable<Number> GetAll()
+        var results = await _connection.Table<Number>()
+                                       .Take(count) // Get only the specified number of records (LIMIT 20)
+                                       .ToListAsync();
+        return results;
+    }
+    public async Task<List<Number>> GetAllWithLinqAsync()
     {
-        this._logger.LogInformation("GetAll");
-        throw new NotImplementedException();
+        var results = await _connection.Table<Number>().ToListAsync();
+        return results;
     }
 }

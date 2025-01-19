@@ -1,56 +1,104 @@
 ﻿@page "/results"
-@using TechAptV1.Client.Models
-@using TechAptV1.Client.Services
+@using System.Diagnostics
+@inject ILogger<Threading> Logger
+@inject DataService DataService
+@inject IEnumerable<IDataSerializer> Serializers
+@inject IJSRuntime JSRuntime
 
 <h3>Results</h3>
-<p>The table shows the top N numbers generated. The download XML and Binary feature allows you to download the entire data set</p>
+<p>The table shows the top N numbers generated. The download XML and Binary feature allows you to download the entire data set.</p>
 
-<div>
-    <button class="btn btn-primary" @onclick="(async () => await this.DownloadXml())">Download XML</button>
-    <button class="btn btn-primary" @onclick="(async () => await this.DownloadBinary())">Download Binary</button>
+<div class="mb-3">
+    @foreach (var serializer in Serializers)
+    {
+        <button class="btn btn-primary m-2" @onclick="async () => await DownloadFile(serializer)" disabled="@downloading">
+            Download @(serializer.FileExtension.ToUpper())
+        </button>
+    }
+    @if (downloading)
+    {
+        <div class="d-inline-block ms-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Downloading...</span>
+            </div>
+            <label class="ms-2">Downloading File...</label>
+        </div>
+    }
+    @if (fileDownloaded)
+    {
+        <div class="d-inline-block ms-3">
+            <label>File downloaded to: @filePath</label>
+            <button class="btn btn-primary ms-2" @onclick="OpenFileExplorerServer">Open Folder</button>
+        </div>
+    }
 </div>
-<div>
-    <table class="table">
-        <thead>
+
+<table class="table">
+    <thead>
         <tr>
             <th>Value</th>
             <th>IsPrime</th>
         </tr>
-        </thead>
-        <tbody>
-        @foreach (var item in this.numbers)
+    </thead>
+    <tbody>
+        @foreach (var item in numbers)
         {
             <tr>
                 <td>@item.Value</td>
                 <td>@item.IsPrime</td>
             </tr>
         }
-        </tbody>
-    </table>
-</div>
+    </tbody>
+</table>
 
 @code {
+    private List<Number> numbers = new();
+    private bool fileDownloaded = false;
+    private bool downloading = false;
+    private string filePath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
-    [Inject] public required ILogger<Threading> Logger { get; set; }
-
-    private List<Number> numbers = new ();
-
-    /// <summary>
-    /// Fetches all the records, serializes them to XML and downloads the file
-    /// </summary>
-    private async Task DownloadXml()
+    protected override async Task OnInitializedAsync()
     {
-        this.Logger.LogInformation("DownloadXml");
-        throw new NotImplementedException();
+        Logger.LogInformation("Fetching top 20 results");
+        numbers = await DataService.GetAsync(20); // Fetch top 20 numbers asynchronously
     }
 
-    /// <summary>
-    /// Fetches all the records, serializes them to Binary and downloads the file
-    /// </summary>
-    private async Task DownloadBinary()
+    private async Task DownloadFile(IDataSerializer serializer)
     {
-        this.Logger.LogInformation("DownloadBinary");
-        throw new NotImplementedException();
+        try
+        {
+            fileDownloaded = false;
+            downloading = true;
+
+            string outputFilePath = Path.Combine(filePath, $"Numbers{serializer.FileExtension}");
+            Logger.LogInformation($"Starting download to: {outputFilePath}");
+
+            // Export data using the selected serializer
+            await serializer.ExportAsync(await DataService.GetAllWithLinqAsync(), outputFilePath);
+
+            Logger.LogInformation("Download complete");
+            fileDownloaded = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error during file download: {ex.Message}");
+        }
+        finally
+        {
+            downloading = false;
+        }
     }
 
+    private void OpenFileExplorerServer()
+    {
+        Logger.LogInformation("Opening file explorer");
+        if (!string.IsNullOrEmpty(filePath))
+        {
+            Process.Start(new ProcessStartInfo
+                {
+                    FileName = filePath,
+                    UseShellExecute = true // Open the OS shell
+                });
+        }
+    }
 }

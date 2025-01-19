@@ -2,6 +2,8 @@
 
 using Serilog;
 using TechAptV1.Client.Components;
+using TechAptV1.Client.Services;
+using TechAptV1.Client.Services.Serializers;
 
 namespace TechAptV1.Client
 {
@@ -21,7 +23,10 @@ namespace TechAptV1.Client
 
                 // Add services to the container.
                 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-
+                builder.Services.AddSingleton<DataService>();
+                builder.Services.AddSingleton<ThreadingService>();
+                builder.Services.AddSingleton<IDataSerializer, XmlDataSerializer>();
+                builder.Services.AddSingleton<IDataSerializer, BinaryDataSerializer>();
                 var app = builder.Build();
 
                 // Configure the HTTP request pipeline.
