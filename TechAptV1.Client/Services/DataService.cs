@@ -1,15 +1,15 @@
 ﻿// Copyright © 2025 Always Active Technologies PTY Ltd
 
-using System.Diagnostics;
 using SQLite;
 using TechAptV1.Client.Models;
+using TechAptV1.Client.Services.Interfaces;
 
 namespace TechAptV1.Client.Services;
 
 /// <summary>
 /// Data Access Service for interfacing with the SQLite Database
 /// </summary>
-public sealed class DataService
+public sealed class DataService : IDataService
 {
     private readonly ILogger<DataService> _logger;
     private readonly IConfiguration _configuration;
@@ -32,7 +32,7 @@ public sealed class DataService
 
         _connection = new SQLiteAsyncConnection(_connectionString.Split("=")[1]);
         // Optional: Create the table if it does not exist
-        InitializeDatabase();
+        _ = InitializeDatabase();
     }
 
     /// <summary>
@@ -66,10 +66,7 @@ public sealed class DataService
 
         try
         {
-            await _connection.RunInTransactionAsync(connection =>
-            {
-                connection.InsertAll(dataList);
-            });
+            await _connection.InsertAllAsync(dataList);
 
             _logger.LogInformation($"Saved {dataList.Count()} records to the database.");
         }

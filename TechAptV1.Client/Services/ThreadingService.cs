@@ -1,6 +1,7 @@
 ﻿// Copyright © 2025 Always Active Technologies PTY Ltd
 
 using TechAptV1.Client.Models;
+using TechAptV1.Client.Services.Interfaces;
 
 namespace TechAptV1.Client.Services;
 
@@ -9,8 +10,11 @@ namespace TechAptV1.Client.Services;
 /// </summary>
 /// <param name="logger"></param>
 /// <param name="dataService"></param>
-public sealed class ThreadingService(ILogger<ThreadingService> logger, DataService dataService)
+public sealed class ThreadingService : IThreadingService
 {
+    private readonly ILogger<ThreadingService> _logger;
+    private readonly IDataService _dataService;
+
     private readonly List<int> _sharedList = new();
     private readonly object _lock = new();
 
@@ -23,6 +27,17 @@ public sealed class ThreadingService(ILogger<ThreadingService> logger, DataServi
     public int GetEvenNumbers() => _evenNumbers;
     public int GetPrimeNumbers() => _primeNumbers;
     public int GetTotalNumbers() => _totalNumbers;
+
+    /// <summary>
+    /// Initializes a new instance of the ThreadingService class.
+    /// </summary>
+    /// <param name="logger">Logger for logging information and errors.</param>
+    /// <param name="dataService">Data service for database interactions.</param>
+    public ThreadingService(ILogger<ThreadingService> logger, IDataService dataService)
+    {
+        _logger = logger;
+        _dataService = dataService;
+    }
 
     /// <summary>
     /// Start the random number generation process
@@ -64,9 +79,9 @@ public sealed class ThreadingService(ILogger<ThreadingService> logger, DataServi
     /// </summary>
     public async Task Save()
     {
-        logger.LogInformation("Save");
+        _logger.LogInformation("Save");
         //We can take a shortcut here because all the prime numbers are negated
-        await dataService.SaveAsync(_sharedList.Select(n => new Number { Value = n, IsPrime = n < 0 ? 1 : 0 }));
+        await _dataService.SaveAsync(_sharedList.Select(n => new Number { Value = n, IsPrime = n < 0 ? 1 : 0 }));
     }
     /// <summary>
     /// Add odd numbers to the list

@@ -1,7 +1,8 @@
 ﻿@page "/results"
 @using System.Diagnostics
+@using TechAptV1.Client.Services.Interfaces
 @inject ILogger<Threading> Logger
-@inject DataService DataService
+@inject IDataService DataService
 @inject IEnumerable<IDataSerializer> Serializers
 @inject IJSRuntime JSRuntime
 

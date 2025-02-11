@@ -1,4 +1,8 @@
 ﻿@page "/threading"
+@using System.Diagnostics
+@using TechAptV1.Client.Services.Interfaces
+@inject ILogger<Threading> Logger
+@inject IThreadingService ThreadingService
 
     <h3>Threading &amp; Data Persistence</h3>
 
@@ -47,8 +51,9 @@
 
     @code {
 
-        [Inject] public required ILogger<Threading> Logger { get; set; }
-        [Inject] public required ThreadingService ThreadingService { get; set; }
+        //[Inject] public required ILogger<Threading> Logger { get; set; }
+        //[Inject] public required IThreadingService ThreadingService { get; set; }
+
 
         private int _oddNumbers = 0;
         private int _evenNumbers = 0;
